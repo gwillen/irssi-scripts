@@ -31,47 +31,6 @@ $VERSION = "0.01";
     changed     => "Tue Feb 8 00:00:00 EST 2011"
 );
 
-sub cmd_test {
-  my ($data, $server, $witem) = @_;
-  if ($data ne "") {
-    Irssi::print("No argument permitted to ssave. (Usage: run without arguments to add all joined channels to the list of saved channels, and /layout save, and /save.)");
-    return;
-  }
-  print "Saving channels...";
-  my @wins = Irssi::windows();
-  my $win3 = $wins[0];
-  print "WIN3";
-  #print $win3->{active}->{name};
-  foreach my $k (keys(%$win3)) {
-    print "   $k => $win3->{$k}";
-  }
-  foreach my $win (@wins) {
-    if (!exists $win->{refnum}) {
-      print "MISSING REFNUM";
-      next;
-    }
-    Irssi::command("win $win->{refnum}");
-    
-
-    if (!$win->{name} && !exists($win->{active})) {
-      print "Destroying window $win->{refnum}";
-      $win->destroy();
-      next;
-    }
-
-    if ($win->{name}) {
-      print "$win->{refnum} $win->{name}";
-    } elsif (exists $win->{active} && exists $win->{active}{name}) {
-      print "$win->{refnum} - $win->{active}{name}";
-    } else {
-      print "$win->{refnum} * ???";
-    }
-    #foreach my $k (keys(%$chan)) {
-    #  print "   $k => $chan->{$k}";
-    #}
-  }
-}
-
 sub cmd_clearhilight {
   my ($data, $server, $witem) = @_;
   if ($data ne "") {
@@ -121,6 +80,27 @@ sub cmd_ssave {
     Irssi::print("No argument permitted to ssave. (Usage: run without arguments to add all joined channels to the list of saved channels, and /layout save, and /save.)");
     return;
   }
+
+  print "Saving servers...";
+  my @servers = Irssi::servers();
+  if (scalar @servers == 0) {
+     print "Something's wrong; no servers! Not saving.";
+     return;
+  }
+  foreach my $server (@servers) {
+    my $net = "";
+    if ($server->{'chatnet'}) {
+      $net = $server->{'chatnet'};
+    } elsif ($server->{'tag'}) {
+      $net = $server->{'tag'};
+    } else {
+      $net = $server->{'address'};
+      # But really, don't do that. I don't think this can even happen.
+    }
+    Irssi::command("network add $net");
+    Irssi::command("server add -auto -network $net $server->{address} $server->{port}");
+  }
+
   print "Saving channels...";
   my @chans = Irssi::channels();
   if (scalar @chans == 0) {
@@ -128,8 +108,18 @@ sub cmd_ssave {
     return;
   }
   foreach my $chan (@chans) {
-    Irssi::command("channel add -auto $chan->{name} $chan->{server}->{tag} $chan->{key}");
+    my $net = "";
+    if ($chan->{'server'}->{'chatnet'}) {
+      $net = $chan->{'server'}->{'chatnet'};
+    } elsif ($chan->{'server'}->{'tag'}) {
+      $net = $chan->{'server'}->{'tag'};
+    } else {
+      $net = $chan->{'server'}->{'address'};
+      # Same caveat as above.
+    }
+    Irssi::command("channel add -auto $chan->{name} $net $chan->{key}");
   }
+
   Irssi::command("layout save");
   Irssi::command("save");
 }
