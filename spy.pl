@@ -98,12 +98,22 @@ sub print_text {
   @data = @_;
 }
 
+sub message_own_private {
+  my ($server, $msg, $target, $orig_target) = @_;
+  if (substr($msg, 0, length($hdr)) eq $hdr) {
+    # We're sending an encoded message.
+    Irssi::signal_stop();
+  }
+}
+
+
 $recv_buf = "";
 
 sub message_private {
   my ($server, $msg, $nick, $address) = @_;
   if (substr($msg, 0, length($hdr)) eq $hdr) {
     # It's an encoded message.
+    Irssi::signal_stop();
     $msg = substr($msg, length($hdr));
     $recv_buf .= $msg;
     my ($len, $rest) = split(":", $recv_buf, 2);
