@@ -102,7 +102,7 @@ sub print_text {
   my ($textdest, $text, $stripped) = @_;
   my $copychannel = trim(Irssi::settings_get_str('copy_channel'));
   return if $copychannel eq "";
-  if ($textdest->{'window'}->{'active'}->{'name'} eq $copychannel) {
+  if ($textdest->{'target'} eq $copychannel) {
     copy_msg($stripped);
   }
   @data = @_;
