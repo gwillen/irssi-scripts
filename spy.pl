@@ -79,7 +79,7 @@ sub flush_buf() {
 
 sub copy_msg($) {
   my ($copy) = @_;
-  $copy = "M" . length($copy) . ":$copy;";
+  $copy = length($copy) . ":$copy;";
   if ($buf eq "") {
     # Start the clock.
     $maxtimer = Irssi::timeout_add_once($timeout * 1000, \&flush_buf, undef);
@@ -98,8 +98,31 @@ sub print_text {
   @data = @_;
 }
 
+$recv_buf = "";
+
+sub message_private {
+  my ($server, $msg, $nick, $address) = @_;
+  if (substr($msg, 0, length($hdr)) eq $hdr) {
+    # It's an encoded message.
+    $msg = substr($msg, length($hdr));
+    $recv_buf .= $msg;
+    my ($len, $rest) = split(":", $recv_buf, 2);
+    while (defined $rest) {
+      my $body = substr($rest, 0, $len);
+      print "GOT BODY $body";
+      my $semi = substr($rest, $len, 1);
+      if ($semi ne ";") {
+        print "OOPS! BAD! buf = $recv_buf";
+      }
+      $recv_buf = substr($rest, $len+1);
+      ($len, $rest) = split(":", $recv_buf, 2);
+    }
+  }
+}
+
 Irssi::command_bind('debug', 'cmd_debug');
 
 Irssi::signal_add_last('print text', 'print_text');
+Irssi::signal_add_last('message private', 'message_private');
 
 # vim:set ts=4 sw=4 et:
