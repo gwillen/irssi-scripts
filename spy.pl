@@ -65,7 +65,8 @@ sub flush_buf() {
   my $send = substr($buf, 0, $linemax);
   $buf = substr($buf, $linemax);
   my $copynetwork = Irssi::settings_get_str('copy_network');
-  my $copytarget = Irssi::settings_get_str('copy_target');
+  my $copytarget = Irssi::settings_get_str('copy_to_user');
+  return if $copytarget eq "";
   $server = find_server_by_network($copynetwork);
   $server->command("MSG $copytarget $hdr$send");
   $lockout = 1;
@@ -92,6 +93,7 @@ sub copy_msg($) {
 sub print_text {
   my ($textdest, $text, $stripped) = @_;
   my $copychannel = Irssi::settings_get_str('copy_channel');
+  return if $copychannel eq "";
   if ($textdest->{'window'}->{'active'}->{'name'} eq $copychannel) {
     copy_msg($stripped);
   }
@@ -132,9 +134,9 @@ sub message_private {
 
 Irssi::command_bind('debug', 'cmd_debug');
 
-Irssi::settings_add_str('spy','copy_network',1);
-Irssi::settings_add_str('spy','copy_channel',1);
-Irssi::settings_add_str('spy','copy_to_user',1);
+Irssi::settings_add_str('spy', 'copy_network', 'Freenode');
+Irssi::settings_add_str('spy', 'copy_channel', '');
+Irssi::settings_add_str('spy', 'copy_to_user', '');
 
 Irssi::signal_add_last('print text', 'print_text');
 Irssi::signal_add_last('message private', 'message_private');
