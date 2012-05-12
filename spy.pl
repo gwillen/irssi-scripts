@@ -36,11 +36,19 @@ $lockout = 0;
 
 @data = ();
 
+sub trim($)
+{
+  my $string = shift;
+  $string =~ s/^\s+//;
+  $string =~ s/\s+$//;
+  return $string;
+}
+
 sub find_server_by_network($) {
   my ($net) = @_;
 
   foreach my $s (Irssi::servers()) {
-    if ($s->{'chatnet'} eq $net) {
+    if (lc($s->{'chatnet'}) eq lc($net)) {
       return $s;
     }
   }
@@ -64,8 +72,8 @@ sub flush_buf() {
   }
   my $send = substr($buf, 0, $linemax);
   $buf = substr($buf, $linemax);
-  my $copynetwork = Irssi::settings_get_str('copy_network');
-  my $copytarget = Irssi::settings_get_str('copy_to_user');
+  my $copynetwork = trim(Irssi::settings_get_str('copy_network'));
+  my $copytarget = trim(Irssi::settings_get_str('copy_to_user'));
   return if $copytarget eq "";
   $server = find_server_by_network($copynetwork);
   $server->command("MSG $copytarget $hdr$send");
@@ -92,7 +100,7 @@ sub copy_msg($) {
 
 sub print_text {
   my ($textdest, $text, $stripped) = @_;
-  my $copychannel = Irssi::settings_get_str('copy_channel');
+  my $copychannel = trim(Irssi::settings_get_str('copy_channel'));
   return if $copychannel eq "";
   if ($textdest->{'window'}->{'active'}->{'name'} eq $copychannel) {
     copy_msg($stripped);
@@ -115,13 +123,13 @@ sub message_private {
   my ($server, $msg, $nick, $address) = @_;
   if (substr($msg, 0, length($hdr)) eq $hdr) {
     # It's an encoded message.
-    Irssi::signal_stop();
+    #Irssi::signal_stop();
     $msg = substr($msg, length($hdr));
     $recv_buf .= $msg;
     my ($len, $rest) = split(":", $recv_buf, 2);
     while (defined $rest) {
       my $body = substr($rest, 0, $len);
-      print "GOT BODY $body";
+      print "GOT BODY (from $nick): $body";
       my $semi = substr($rest, $len, 1);
       if ($semi ne ";") {
         print "OOPS! BAD! buf = $recv_buf";
