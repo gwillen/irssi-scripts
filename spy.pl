@@ -117,7 +117,7 @@ sub message_own_private {
 }
 
 
-$recv_buf = "";
+$recv_buf = {};
 
 sub message_private {
   my ($server, $msg, $nick, $address) = @_;
@@ -125,17 +125,26 @@ sub message_private {
     # It's an encoded message.
     Irssi::signal_stop();
     $msg = substr($msg, length($hdr));
-    $recv_buf .= $msg;
-    my ($len, $rest) = split(":", $recv_buf, 2);
+    $recv_buf->{$nick} = "" if !defined $recv_buf->{$nick};
+    $recv_buf->{$nick} .= $msg;
+    my ($len, $rest) = split(":", $recv_buf->{$nick}, 2);
     while (defined $rest) {
       my $body = substr($rest, 0, $len);
-      print "GOT BODY (from $nick): $body";
+      my $window = Irssi::window_find_name("spy-$nick");
+      if (!$window) {
+        my $saved = Irssi::active_win()->{refnum};
+        Irssi::command("window new hide");
+        Irssi::command("window name spy-$nick");
+        $window = Irssi::window_find_name("spy-$nick");
+        Irssi::command("window $saved");
+      }
+      $window->print($body, MSGLEVEL_PUBLIC);
       my $semi = substr($rest, $len, 1);
       if ($semi ne ";") {
-        print "OOPS! BAD! buf = $recv_buf";
+        print "OOPS! BAD! buf = $recv_buf->{$nick}";
       }
-      $recv_buf = substr($rest, $len+1);
-      ($len, $rest) = split(":", $recv_buf, 2);
+      $recv_buf->{$nick} = substr($rest, $len+1);
+      ($len, $rest) = split(":", $recv_buf->{$nick}, 2);
     }
   }
 }
