@@ -30,9 +30,12 @@ $copynetwork = "Freenode";
 $copytarget = "gwillen";
 $copychannel = "#cslounge";
 $timeout = 10;
+$min_send_interval = 5;
 
 $buf = "";
-$timer = undef;
+$maxtimer = undef;
+$mintimer = undef;
+$lockout = 0;
 
 @data = ();
 
@@ -52,95 +55,51 @@ sub cmd_debug {
   print(eval($data));
 }
 
+sub allow_send() {
+  $lockout = 0;
+  # We should really check if we missed a send, and do it now if we did. I
+  # _think_ the other timer should always catch us, but I'm not certain.
+}
+
 sub flush_buf() {
+  if ($lockout) {
+    return;  # Toon soon since last send -- we're locked out.
+  }
   my $send = substr($buf, 0, $linemax);
   $buf = substr($buf, $linemax);
   $server = find_server_by_network($copynetwork);
   $server->command("MSG $copytarget $hdr$send");
+  $lockout = 1;
+  $mintimer = Irssi::timeout_add_once($min_send_interval * 1000, \&allow_send, undef);
+  if ($buf ne "") {
+    # Still text to send; restart the clock.
+    $maxtimer = Irssi::timeout_add_once($timeout * 1000, \&flush_buf, undef);
+  }
 }
 
 sub copy_msg($) {
   my ($copy) = @_;
   $copy = "M" . length($copy) . ":$copy;";
+  if ($buf eq "") {
+    # Start the clock.
+    $maxtimer = Irssi::timeout_add_once($timeout * 1000, \&flush_buf, undef);
+  }
   $buf .= $copy;
   if (length $buf >= $linemax) {
     flush_buf();
   }
-  if (length $buf) {
-    Irssi::timeout_remove($timer);
-    $timer = Irssi::timeout_add_once($timeout * 1000, \&flush_buf, undef);
+}
+
+sub print_text {
+  my ($textdest, $text, $stripped) = @_;
+  if ($textdest->{'window'}->{'active'}->{'name'} eq $copychannel) {
+    copy_msg($stripped);
   }
-}
-
-sub message_public {
-  my ($server, $msg, $nick, $address, $target) = @_;
-  return if $target ne $copychannel;
-  $copy = "<$nick> $msg";
-  copy_msg($copy);
   @data = @_;
-}
-
-sub message_own_public {
-  my ($server, $msg, $target) = @_;
-  return if $target ne $copychannel;
-  $mynick = $server->{'nick'};
-  $copy = "<$mynick> $msg";
-  copy_msg($copy);
-}
-
-sub message_any {
-  my ($type, $channel, $nick, $extra1, $extra2) = @_;
-  return if $channel ne $copychannel;
-  $copy = "$type:<$nick>" . ($extra1 ? ":$extra1" : "") .
-                            ($extra2 ? ":$extra2" : "");
-  copy_msg($copy);
-}
-
-sub message_join {
-  my ($server, $channel, $nick, $address) = @_;
-  message_any("JOIN", $channel, $nick);
-}
-
-sub message_part {
-  my ($server, $channel, $nick, $address, $reason) = @_;
-  message_any("PART", $channel, $nick, $reason);
-}
-
-sub message_quit {
-  my ($server, $nick, $address, $reason) = @_;
-  # XXX message_any("QUIT", @_);
-}
-
-sub message_kick {
-  my ($server, $channel, $nick, $kicker, $address, $reason) = @_;
-  message_any("KICK", $channel, $nick, $reason, $kicker);
-}
-
-sub message_nick {
-  my ($server, $nick, $oldnick, $address) = @_;
-  # XXX message_any("NICK", @_);
-}
-
-sub message_own_nick {
-  my ($server, $nick, $oldnick, $address) = @_;
-  # XXX message_any("OWN_NICK", @_);
-}
-
-sub message_topic {
-  my ($server, $channel, $topic, $nick, $address) = @_;
-  message_any("TOPIC", $channel, $nick, $topic);
 }
 
 Irssi::command_bind('debug', 'cmd_debug');
 
-Irssi::signal_add_last('message public', 'message_public');
-Irssi::signal_add_last('message own_public', 'message_own_public');
-Irssi::signal_add_last('message join', 'message_join');
-Irssi::signal_add_last('message part', 'message_part');
-Irssi::signal_add_last('message quit', 'message_quit');
-Irssi::signal_add_last('message kick', 'message_kick');
-Irssi::signal_add_last('message nick', 'message_nick');
-Irssi::signal_add_last('message own_nick', 'message_own_nick');
-Irssi::signal_add_last('message topic', 'message_topic');
+Irssi::signal_add_last('print text', 'print_text');
 
 # vim:set ts=4 sw=4 et:
