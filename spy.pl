@@ -123,7 +123,7 @@ sub message_private {
   my ($server, $msg, $nick, $address) = @_;
   if (substr($msg, 0, length($hdr)) eq $hdr) {
     # It's an encoded message.
-    #Irssi::signal_stop();
+    Irssi::signal_stop();
     $msg = substr($msg, length($hdr));
     $recv_buf .= $msg;
     my ($len, $rest) = split(":", $recv_buf, 2);
@@ -148,5 +148,6 @@ Irssi::settings_add_str('spy', 'copy_to_user', '');
 
 Irssi::signal_add_last('print text', 'print_text');
 Irssi::signal_add_last('message private', 'message_private');
+Irssi::signal_add_last('message own_private', 'message_own_private');
 
 # vim:set ts=4 sw=4 et:
