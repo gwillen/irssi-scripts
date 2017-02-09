@@ -143,12 +143,16 @@ sub message_private {
       $recv_buf->{$nick} = $keep;
     }
     my ($len, $rest) = split(":", $recv_buf->{$nick}, 2);
+    if (length($rest) < $len+1) {
+      # We don't have a full line yet, don't try to process it. Wait for more.
+      return;
+    }
     while (defined $rest) {
       my $body = substr($rest, 0, $len);
       $window->print($body, MSGLEVEL_PUBLIC);
       my $semi = substr($rest, $len, 1);
       if ($semi ne ";") {
-        print "OOPS! BAD! buf = $recv_buf->{$nick}";
+        print "FRAMING ERROR: Missing semicolon after message in buffer";
       }
       $recv_buf->{$nick} = substr($rest, $len+1);
       ($len, $rest) = split(":", $recv_buf->{$nick}, 2);
