@@ -127,6 +127,12 @@ sub message_private {
     $msg = substr($msg, length($hdr));
     $recv_buf->{$nick} = "" if !defined $recv_buf->{$nick};
     $recv_buf->{$nick} .= $msg;
+    while ($recv_buf->{$nick} and $recv_buf->{$nick} !~ /^[0-9]+:/) {
+      print "FRAMING ERROR: buffer starts with junk: $recv_buf->{$nick}";
+      print "Flushing buffer to next semicolon";
+      my ($_flush, $keep) = split(";", $recv_buf->{$nick}, 2);
+      $recv_buf->{$nick} = $keep;
+    }
     my ($len, $rest) = split(":", $recv_buf->{$nick}, 2);
     while (defined $rest) {
       my $body = substr($rest, 0, $len);
